@@ -6,8 +6,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"regexp"
+	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -555,6 +558,170 @@ func (bf *BackupFinder) Run() error {
 	return nil
 }
 
+// SystemInfo holds system environment information
+type SystemInfo struct {
+	OS           string
+	Architecture string
+	GoVersion    string
+	GoInstalled  bool
+	GoPath       string
+	GoRoot       string
+}
+
+// GetSystemInfo gathers system information
+func GetSystemInfo() *SystemInfo {
+	info := &SystemInfo{
+		OS:           runtime.GOOS,
+		Architecture: runtime.GOARCH,
+	}
+
+	// Check if Go is installed
+	if goVersion, err := exec.Command("go", "version").Output(); err == nil {
+		info.GoInstalled = true
+		info.GoVersion = strings.TrimSpace(string(goVersion))
+		
+		if goPath, err := exec.Command("go", "env", "GOPATH").Output(); err == nil {
+			info.GoPath = strings.TrimSpace(string(goPath))
+		}
+		
+		if goRoot, err := exec.Command("go", "env", "GOROOT").Output(); err == nil {
+			info.GoRoot = strings.TrimSpace(string(goRoot))
+		}
+	}
+
+	return info
+}
+
+// CheckGoVersion checks if Go version meets minimum requirements
+func CheckGoVersion(version string) (bool, string) {
+	// Extract version number from "go version go1.22.3 linux/amd64"
+	parts := strings.Fields(version)
+	if len(parts) < 3 {
+		return false, ""
+	}
+	
+	goVersion := strings.TrimPrefix(parts[2], "go")
+	versionParts := strings.Split(goVersion, ".")
+	
+	if len(versionParts) < 2 {
+		return false, goVersion
+	}
+	
+	major, err1 := strconv.Atoi(versionParts[0])
+	minor, err2 := strconv.Atoi(versionParts[1])
+	
+	if err1 != nil || err2 != nil {
+		return false, goVersion
+	}
+	
+	// Minimum Go 1.18
+	return major > 1 || (major == 1 && minor >= 18), goVersion
+}
+
+// ShowSystemDiagnostics displays comprehensive system information
+func ShowSystemDiagnostics() {
+	info := GetSystemInfo()
+	
+	fmt.Println("🔍 System Diagnostics")
+	fmt.Println("====================")
+	fmt.Printf("Operating System: %s\n", info.OS)
+	fmt.Printf("Architecture: %s\n", info.Architecture)
+	fmt.Println()
+	
+	if info.GoInstalled {
+		color.Green("✅ Go is installed")
+		fmt.Printf("Version: %s\n", info.GoVersion)
+		
+		if valid, version := CheckGoVersion(info.GoVersion); valid {
+			color.Green("✅ Go version is compatible (>= 1.18)")
+		} else {
+			color.Yellow("⚠️  Go version might be too old")
+			color.Yellow("   Current: %s", version)
+			color.Yellow("   Minimum required: 1.18")
+		}
+		
+		fmt.Printf("GOPATH: %s\n", info.GoPath)
+		fmt.Printf("GOROOT: %s\n", info.GoRoot)
+		fmt.Println()
+		
+		color.Green("✅ BackupFinder can run directly")
+		fmt.Println("   Run: go run ./cmd/backupfinder")
+		fmt.Println("   Or build: go build -o backupfinder ./cmd/backupfinder")
+	} else {
+		color.Red("❌ Go is not installed")
+		fmt.Println()
+		
+		color.Cyan("📋 Installation Options:")
+		fmt.Println()
+		
+		switch info.OS {
+		case "linux":
+			fmt.Println("🐧 Linux Installation:")
+			fmt.Println("   1. Use setup script: chmod +x setup.sh && ./setup.sh")
+			fmt.Println("   2. Use install script: chmod +x install.sh && ./install.sh")
+			fmt.Println("   3. Manual installation:")
+			fmt.Println("      curl -O https://go.dev/dl/go1.22.3.linux-amd64.tar.gz")
+			fmt.Println("      sudo rm -rf /usr/local/go")
+			fmt.Println("      sudo tar -C /usr/local -xzf go1.22.3.linux-amd64.tar.gz")
+			fmt.Println("      echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc")
+			fmt.Println("      source ~/.bashrc")
+			
+		case "darwin":
+			fmt.Println("🍎 macOS Installation:")
+			fmt.Println("   1. Homebrew: brew install go")
+			fmt.Println("   2. Download installer: https://go.dev/dl/")
+			fmt.Println("   3. Manual: similar to Linux but use darwin-amd64 or darwin-arm64")
+			
+		case "windows":
+			fmt.Println("🪟 Windows Installation:")
+			fmt.Println("   1. Download installer: https://go.dev/dl/")
+			fmt.Println("   2. Chocolatey: choco install golang")
+			fmt.Println("   3. Scoop: scoop install go")
+			
+		default:
+			fmt.Printf("   Download from: https://go.dev/dl/ (for %s)\n", info.OS)
+		}
+		
+		fmt.Println()
+		color.Yellow("⚠️  After installing Go, re-run this command to verify")
+	}
+}
+
+// ShowQuickStart shows quick start guide
+func ShowQuickStart() {
+	fmt.Println("🚀 BackupFinder Quick Start")
+	fmt.Println("===========================")
+	
+	info := GetSystemInfo()
+	
+	if info.GoInstalled {
+		if valid, _ := CheckGoVersion(info.GoVersion); valid {
+			color.Green("✅ Your system is ready!")
+			fmt.Println()
+			fmt.Println("🏗️  Build BackupFinder:")
+			fmt.Println("   go build -o backupfinder ./cmd/backupfinder")
+			fmt.Println()
+			fmt.Println("🧪 Test installation:")
+			fmt.Println("   ./backupfinder health-check")
+			fmt.Println()
+			fmt.Println("📖 Basic usage:")
+			fmt.Println("   ./backupfinder -u example.com -w")
+			fmt.Println("   ./backupfinder -u example.com -e txt,bak,old")
+			fmt.Println("   ./backupfinder --help")
+		} else {
+			color.Yellow("⚠️  Go version might be incompatible")
+			fmt.Println("   Consider upgrading to Go 1.18+")
+		}
+	} else {
+		color.Red("❌ Go is required but not installed")
+		fmt.Println()
+		color.Cyan("🔧 Auto-setup (Linux only):")
+		fmt.Println("   chmod +x install.sh && ./install.sh")
+		fmt.Println()
+		fmt.Println("For other systems, see: ./backupfinder system-check")
+	}
+}
+
 // Main function
 func main() {
 	config := &Config{
@@ -652,6 +819,99 @@ May you be well on your side of the screen :)`,
 		},
 	}
 	rootCmd.AddCommand(templatesCmd)
+
+	// System check command
+	var systemCheckCmd = &cobra.Command{
+		Use:   "system-check",
+		Short: "Check system requirements and Go installation",
+		Long: `Performs comprehensive system diagnostics including:
+• Operating system and architecture detection
+• Go installation verification
+• Version compatibility check
+• Environment configuration status
+• Installation guidance for missing components`,
+		Run: func(cmd *cobra.Command, args []string) {
+			ShowSystemDiagnostics()
+		},
+	}
+	rootCmd.AddCommand(systemCheckCmd)
+
+	// Quick start command
+	var quickStartCmd = &cobra.Command{
+		Use:   "quick-start",
+		Short: "Show quick start guide",
+		Long:  "Displays a quick start guide with system-specific instructions",
+		Run: func(cmd *cobra.Command, args []string) {
+			ShowQuickStart()
+		},
+	}
+	rootCmd.AddCommand(quickStartCmd)
+
+	// Setup command
+	var setupCmd = &cobra.Command{
+		Use:   "setup",
+		Short: "Interactive setup guide",
+		Long: `Interactive setup guide that helps you:
+• Verify Go installation
+• Build BackupFinder
+• Test the installation
+• Provides troubleshooting tips`,
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Println("🔧 BackupFinder Interactive Setup")
+			fmt.Println("=================================")
+			fmt.Println()
+			
+			info := GetSystemInfo()
+			
+			if !info.GoInstalled {
+				color.Red("❌ Go is not installed on your system")
+				fmt.Println()
+				
+				color.Cyan("🔧 Automated Setup Options:")
+				fmt.Println()
+				
+				if info.OS == "linux" {
+					fmt.Println("1. 📦 Quick Setup (Recommended):")
+					fmt.Println("   chmod +x install.sh && ./install.sh")
+					fmt.Println()
+					fmt.Println("2. 🛠️  Basic Setup:")
+					fmt.Println("   chmod +x setup.sh && ./setup.sh")
+					fmt.Println()
+				}
+				
+				fmt.Println("3. 📖 Manual Setup:")
+				fmt.Println("   Run: ./backupfinder system-check")
+				fmt.Println("   Follow the installation instructions for your OS")
+				
+				return
+			}
+			
+			if valid, version := CheckGoVersion(info.GoVersion); !valid {
+				color.Yellow("⚠️  Go version might be too old: %s", version)
+				color.Yellow("   Minimum required: 1.18")
+				fmt.Println("   Consider upgrading Go for best compatibility")
+				fmt.Println()
+			}
+			
+			color.Green("✅ Go is properly installed")
+			fmt.Printf("   Version: %s\n", info.GoVersion)
+			fmt.Println()
+			
+			color.Cyan("🏗️  Building BackupFinder...")
+			fmt.Println("   Run: go build -o backupfinder ./cmd/backupfinder")
+			fmt.Println()
+			
+			color.Cyan("🧪 Testing BackupFinder...")
+			fmt.Println("   Run: ./backupfinder health-check")
+			fmt.Println("   Run: ./backupfinder version")
+			fmt.Println()
+			
+			color.Green("🚀 You're ready to use BackupFinder!")
+			fmt.Println("   Quick usage: ./backupfinder -u example.com -w")
+			fmt.Println("   Full help: ./backupfinder --help")
+		},
+	}
+	rootCmd.AddCommand(setupCmd)
 
 	// Execute
 	if err := rootCmd.Execute(); err != nil {
