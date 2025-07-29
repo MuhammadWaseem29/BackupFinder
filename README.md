@@ -8,33 +8,6 @@ I truly hope everything is awesome on your side of the screen! 😊
 It creates thousands of potential backup file names based on your target domain.  
 Perfect for penetration testing, bug bounty hunting, and security audits.
 
-**🆕 New Feature**: Automated Go installation and setup for Linux systems!
-
----
-
-## 🚀 Quick Setup
-
-### Automated Installation (Linux - Recommended)
-```bash
-# Clone and auto-setup
-git clone https://github.com/MuhammadWaseem29/BackupFinder.git
-cd BackupFinder
-chmod +x install.sh && ./install.sh
-```
-
-### Alternative Methods
-```bash
-# Basic setup script
-chmod +x setup.sh && ./setup.sh
-
-# Using Makefile
-make dev-setup
-
-# Manual Go installation check
-go build -o backupfinder ./cmd/backupfinder
-./backupfinder system-check
-```
-
 ---
 
 ## Some Results 
@@ -156,9 +129,6 @@ COMMANDS:
   version                  show version information
   health-check             verify installation and assets
   templates                list available pattern templates
-  system-check             check Go installation and system requirements
-  setup                    interactive setup guide
-  quick-start              show quick start guide
   help                     show this help message
 ```
 
@@ -217,45 +187,6 @@ ffuf -w patterns.txt -u https://admin.microsoft.com/FUZZ -mc 200,403,500 -fc 404
 ```
 
 <img width="1510" height="732" alt="image" src="https://github.com/user-attachments/assets/9a66801b-80e7-49b7-a8ae-fda677a50114" />
-
----
-
-## 🔧 Setup & Installation Commands
-
-BackupFinder includes built-in commands to help with installation and system diagnostics:
-
-### System Diagnostics
-```bash
-# Check Go installation and system requirements
-./backupfinder system-check
-```
-
-### Interactive Setup
-```bash
-# Get step-by-step setup guidance
-./backupfinder setup
-```
-
-### Quick Start Guide
-```bash
-# Show quick usage examples
-./backupfinder quick-start
-```
-
-### Makefile Commands
-```bash
-# Complete development setup
-make dev-setup
-
-# Build only
-make build
-
-# Run system check
-make system-check
-
-# Show all available commands
-make help
-```
 
 
 ---
